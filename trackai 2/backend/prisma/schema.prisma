@@ -1,0 +1,146 @@
+// prisma/schema.prisma
+// TrackAI Database Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  avatar        String?
+  bio           String?
+  targetRoles   String[] @default([])
+  skills        String[] @default([])
+  linkedinUrl   String?
+  githubUrl     String?
+  portfolioUrl  String?
+  plan          Plan     @default(FREE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  applications  Application[]
+  resumes       Resume[]
+  aiReports     AIReport[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  userId         String
+  companyName    String
+  role           String
+  status         ApplicationStatus @default(APPLIED)
+  appliedDate    DateTime          @default(now())
+  location       String?
+  jobLink        String?
+  notes          String?
+  salary         String?
+  nextActionDate DateTime?
+  contactName    String?
+  contactEmail   String?
+  source         String?           // linkedin, company site, referral, etc.
+  priority       Priority          @default(MEDIUM)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiReports      AIReport[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([appliedDate])
+  @@map("applications")
+}
+
+model Resume {
+  id           String   @id @default(cuid())
+  userId       String
+  fileName     String
+  fileUrl      String
+  fileSize     Int
+  isDefault    Boolean  @default(false)
+  parsedText   String?
+  skills       String[] @default([])
+  experience   Json?
+  education    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aiReports    AIReport[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model AIReport {
+  id            String     @id @default(cuid())
+  userId        String
+  applicationId String?
+  resumeId      String?
+  type          ReportType
+  input         Json
+  output        Json
+  score         Int?
+  createdAt     DateTime   @default(now())
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  resume        Resume?      @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("ai_reports")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  OA
+  INTERVIEW
+  REJECTED
+  OFFER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum ReportType {
+  RESUME_FEEDBACK
+  JOB_ANALYSIS
+  MATCH_SCORE
+  INTERVIEW_QUESTIONS
+  COVER_LETTER
+}
